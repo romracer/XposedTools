@@ -514,7 +514,7 @@ sub check_target_sdk_platform($$;$) {
     my $sdk = shift;
     my $wildcard = shift || 0;
 
-    if ($sdk < 15 || $sdk == 20 || $sdk > 21) {
+    if ($sdk < 15 || $sdk == 20 || $sdk > 22) {
         print_error("Unsupported SDK version $sdk");
         return 0;
     }
