@@ -418,7 +418,6 @@ sub get_compiled_files($$) {
             /system/lib64/libxposed_art.so
 
             /system/lib64/libart.so
-            /system/lib64/libart-compiler.so
             /system/lib64/libart-disassembler.so
             /system/lib64/libsigchain.so
         );
