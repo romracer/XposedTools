@@ -37,7 +37,7 @@ sub main() {
     Xposed::check_requirements() || exit 1;
 
     print_status('Creating ZIP archives...', 0);
-    foreach my $platform ('arm', 'x86', 'armv5') {
+    foreach my $platform ('arm', 'x86', 'arm64', 'armv5') {
         create_zip($platform) if -d "$Bin/zipstatic/$platform" || exit 1;
     }
 
@@ -49,8 +49,8 @@ sub create_zip() {
 
     # Create a new ZIP file
     my $zip = Archive::Zip->new();
-    $zip->addTree($Bin . '/zipstatic/_uninstaller', '') == AZ_OK || return 0;
-    $zip->addTree($Bin . '/zipstatic/' . $platform, '') == AZ_OK || return 0;
+    $zip->addTree($Bin . '/zipstatic/_uninstaller/', '') == AZ_OK || return 0;
+    $zip->addTree($Bin . '/zipstatic/' . $platform . '/', '') == AZ_OK || return 0;
 
     # Set last modification time to "now"
     my $now = time();

@@ -177,10 +177,6 @@ sub compile($$;$) {
     return Xposed::compile($platform, $sdk, \@params, \@targets, \@makefiles, $opts{'i'}, $silent);
 }
 
-sub datestamp() {
-    return strftime('%Y%m%d', localtime());
-}
-
 # Collect final files into a single directory
 sub collect($$) {
     my $platform = shift;
@@ -279,7 +275,7 @@ sub create_xposed_prop($$;$) {
     }
 
     # Prepare variables
-    my $version = sprintf($Xposed::cfg->val('Build', 'version', 'Custom build (%s)'), strftime('%Y%m%d', localtime()));
+    my $version = sprintf($Xposed::cfg->val('Build', 'version'), strftime('%Y%m%d', localtime()));
     if ($platform eq 'armv5') {
         $platform = 'arm';
     }
@@ -323,12 +319,12 @@ sub create_zip($$) {
     my $outdir = $Xposed::cfg->val('General', 'outdir');
     my $coldir = Xposed::get_collection_dir($platform, $sdk);
     make_path($coldir);
-    $zip->addTree($coldir . '/files', '') == AZ_OK || return 0;
+    $zip->addTree($coldir . '/files/', '') == AZ_OK || return 0;
     $zip->addDirectory('system/framework/') || return 0;
     $zip->addFile("$outdir/java/XposedBridge.jar", 'system/framework/XposedBridge.jar') || return 0;
     # TODO: We probably need different files for older releases
-    $zip->addTree($Bin . '/zipstatic/_all', '') == AZ_OK || return 0;
-    $zip->addTree($Bin . '/zipstatic/' . $platform, '') == AZ_OK || return 0;
+    $zip->addTree($Bin . '/zipstatic/_all/', '') == AZ_OK || return 0;
+    $zip->addTree($Bin . '/zipstatic/' . $platform . '/', '') == AZ_OK || return 0;
 
     # Set last modification time to "now"
     my $now = time();
@@ -337,7 +333,16 @@ sub create_zip($$) {
     }
 
     # Write the ZIP file to disk
-    my $zipname = sprintf('%s/xposed-sdk%d-%s-%s.zip', $coldir, $sdk, $platform, datestamp());
+    $Xposed::cfg->val('Build', 'version') =~ m/^(\d+)(.*)/;
+    my ($version, $suffix) = ($1, $2);
+    if ($suffix) {
+        $suffix = sprintf($suffix, strftime('%Y%m%d', localtime()));
+        $suffix =~ s/[\s\/|*"?<:>%()]+/-/g;
+        $suffix =~ s/-{2,}/-/g;
+        $suffix =~ s/^-|-$//g;
+        $suffix = '-' . $suffix if $suffix;
+    }
+    my $zipname = sprintf('%s/xposed-v%d-sdk%d-%s%s.zip', $coldir, $version, $sdk, $platform, $suffix);
     print "$zipname\n";
     $zip->writeToFileNamed($zipname) == AZ_OK || return 0;
 
