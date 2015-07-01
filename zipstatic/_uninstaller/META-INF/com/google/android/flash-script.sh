@@ -60,6 +60,7 @@ restore_backup() {
     mv_perm $BACKUP $TARGET $2 $3 $4 $5
     rm -f $NO_ORIG
   elif [ -f "${BACKUP}.gz" ]; then
+    rm -f $TARGET
     gzip -d "${BACKUP}.gz"
     mv_perm $BACKUP $TARGET $2 $3 $4 $5
     rm -f $NO_ORIG
