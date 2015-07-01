@@ -22,6 +22,11 @@ mv_perm() {
   set_perm $2 $3 $4 $5 $6
 }
 
+cp_perm() {
+  cp -f $1 $2 || exit 1
+  set_perm $2 $3 $4 $5 $6
+}
+
 set_perm() {
   chown $2:$3 $1 || exit 1
   chmod $4 $1 || exit 1
@@ -40,6 +45,9 @@ restore_link() {
   if [ -f $BACKUP -a -L $TARGET -a "$(readlink $TARGET)" = $XPOSED ]; then
     rm -f $TARGET
     mv_perm $BACKUP $TARGET $2 $3 $4 $5
+  elif [ -f /data/local/tmp/xposed-backups/$BACKUP -a -L $TARGET -a "$(readlink $TARGET)" = $XPOSED ]; then
+    rm -f $TARGET
+    cp_perm /data/local/tmp/xposed-backups/$BACKUP $TARGET $2 $3 $4 $5
   fi
   rm -f $XPOSED
 }
@@ -50,6 +58,9 @@ restore_backup() {
   NO_ORIG="${1}.no_orig"
   if [ -f $BACKUP ]; then
     mv_perm $BACKUP $TARGET $2 $3 $4 $5
+    rm -f $NO_ORIG
+  elif [ -f /data/local/tmp/xposed-backups/$BACKUP ]; then
+    cp_perm /data/local/tmp/xposed-backups/$BACKUP $TARGET $2 $3 $4 $5
     rm -f $NO_ORIG
   elif [ -f $NO_ORIG ]; then
     rm -f $TARGET $NO_ORIG
@@ -86,6 +97,17 @@ fi
 
 # echo "DBG [$API] [$ABI] [$ABI2] [$ABILONG] [$ARCH]"
 
+if [ -f "/system/xposed-backups.tgz" ]; then
+  XLOWSPACE=1
+  echo "- Low-space backup found"
+  echo "- Mounting /data read-write"
+  mount /data >/dev/null 2>&1
+  mount -o remount,rw /data
+  rm -rf /data/local/tmp/xposed-backups
+  mkdir -p /data/local/tmp/xposed-backups
+  tar -xzpf /system/xposed-backups.tgz -C /data/local/tmp/xposed-backups 2>/dev/null
+fi
+
 echo "- Restoring/removing files"
 rm -f /system/xposed.prop
 rm -f /system/framework/XposedBridge.jar
@@ -106,6 +128,11 @@ if [ $IS64BIT ]; then
   restore_backup /system/lib64/libart-disassembler.so  0    0 0644
   restore_backup /system/lib64/libsigchain.so          0    0 0644
   restore_backup /system/lib64/libxposed_art.so        0    0 0644
+fi
+
+if [ ! -z $XLOWSPACE ]; then
+  rm -rf /data/local/tmp/xposed-backups
+  rm -f /system/xposed-backups.tgz
 fi
 
 echo "- Done"
