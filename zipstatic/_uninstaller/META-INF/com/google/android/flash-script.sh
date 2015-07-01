@@ -59,6 +59,10 @@ restore_backup() {
   if [ -f $BACKUP ]; then
     mv_perm $BACKUP $TARGET $2 $3 $4 $5
     rm -f $NO_ORIG
+  elif [ -f "${BACKUP}.gz" ]; then
+    gzip -d "${BACKUP}.gz"
+    mv_perm $BACKUP $TARGET $2 $3 $4 $5
+    rm -f $NO_ORIG
   elif [ -f /data/local/tmp/xposed-backups/$BACKUP ]; then
     cp_perm /data/local/tmp/xposed-backups/$BACKUP $TARGET $2 $3 $4 $5
     rm -f $NO_ORIG
@@ -103,6 +107,7 @@ if [ -f "/system/xposed-backups.tgz" ]; then
   echo "- Mounting /data read-write"
   mount /data >/dev/null 2>&1
   mount -o remount,rw /data
+  echo "- Unpacking backup archive"
   rm -rf /data/local/tmp/xposed-backups
   mkdir -p /data/local/tmp/xposed-backups
   tar -xzpf /system/xposed-backups.tgz -C /data/local/tmp/xposed-backups 2>/dev/null
@@ -129,7 +134,6 @@ if [ $IS64BIT ]; then
   restore_backup /system/lib64/libsigchain.so          0    0 0644
   restore_backup /system/lib64/libxposed_art.so        0    0 0644
 fi
-
 if [ ! -z $XLOWSPACE ]; then
   rm -rf /data/local/tmp/xposed-backups
   rm -f /system/xposed-backups.tgz

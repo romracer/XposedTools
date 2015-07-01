@@ -59,48 +59,16 @@ install_overwrite() {
   NO_ORIG="${1}.no_orig"
   if [ ! -f $TARGET ]; then
     touch $NO_ORIG || exit 1
-  elif [ ! -f $BACKUP -a ! -f $NO_ORIG ]; then
-    if [ -z $XLOWSPACE ]; then
-      mv $TARGET $BACKUP || exit 1
-    else
-      mkdir -p /data/local/tmp/xposed-backups/$(dirname $TARGET)
-      cp_perm $TARGET /data/local/tmp/xposed-backups/$BACKUP $2 $3 $4 $5
-      rm -f $TARGET
-    fi
+    set_perm $NO_ORIG 0 0 0644
+  elif [ -f $BACKUP ]; then
+    gzip $BACKUP || exit 1
+    set_perm "${BACKUP}.gz" $2 $3 $4 $5
+  elif [ ! -f "${BACKUP}.gz" -a ! -f $NO_ORIG ]; then
+    mv $TARGET $BACKUP || exit 1
+    gzip $BACKUP || exit 1
+    set_perm "${BACKUP}.gz" $2 $3 $4 $5
   fi
   cp_perm ./$TARGET $TARGET $2 $3 $4 $5
-}
-
-zip_backups() {
-  if [ ! -f "/system/xposed-backups.tgz" -a -f "/data/local/tmp/xposed-backups/system/lib/libart.so.orig" ]; then
-    echo "- Creating backup archive"
-
-    cat <<EOF >/data/local/tmp/xposed-backups/xposed-originals
-/system/bin/app_process32_original
-./system/bin/dex2oat.orig
-./system/bin/oatdump.orig
-./system/bin/patchoat.orig
-./system/lib/libart.so.orig
-./system/lib/libart-compiler.so.orig
-./system/lib/libart-disassembler.so.orig
-./system/lib/libsigchain.so.orig
-EOF
-
-    if [ $IS64BIT ]; then
-      cat <<EOF >>/data/local/tmp/xposed-backups/xposed-originals
-/system/bin/app_process64_original
-./system/lib64/libart.so.orig
-./system/lib64/libart-compiler.so.orig
-./system/lib64/libart-disassembler.so.orig
-./system/lib64/libsigchain.so.orig
-EOF
-    fi
-
-    rm -f /data/local/tmp/xposed-backups/xposed-backups.tgz
-    tar -czpf /data/local/tmp/xposed-backups/xposed-backups.tgz -T /data/local/tmp/xposed-backups/xposed-originals -C /data/local/tmp/xposed-backups 2>/dev/null
-    cp_perm /data/local/tmp/xposed-backups/xposed-backups.tgz /system/xposed-backups.tgz 0 0 0644
-    rm -rf /data/local/tmp/xposed-backups
-  fi
 }
 
 ##########################################################################################
@@ -168,17 +136,6 @@ if [ -z $XVALID ]; then
   exit 1
 fi
 
-SYSTEMSPACE=$(df -mP | grep 'system$' | awk '{print $4}')
-if [ "$SYSTEMSPACE" -le "15" ]; then
-  XLOWSPACE=1
-  echo "- Low space on /system"
-  echo "  Using alternate backup process"
-  echo "- Mounting /data read-write"
-  mount /data >/dev/null 2>&1
-  mount -o remount,rw /data
-  rm -rf /data/local/tmp/xposed-backups
-fi
-
 echo "- Placing files"
 install_nobackup /system/xposed.prop                      0    0 0644
 install_nobackup /system/framework/XposedBridge.jar       0    0 0644
@@ -199,10 +156,6 @@ if [ $IS64BIT ]; then
   install_overwrite /system/lib64/libart-disassembler.so  0    0 0644
   install_overwrite /system/lib64/libsigchain.so          0    0 0644
   install_overwrite /system/lib64/libxposed_art.so        0    0 0644
-fi
-
-if [ ! -z $XLOWSPACE ]; then
-  zip_backups
 fi
 
 echo "- Done"
