@@ -87,7 +87,7 @@ mount /system >/dev/null 2>&1
 mount -o remount,rw /system
 
 echo "- Checking environment"
-API=$(grep_prop ro.build.version.sdk)
+API=$(grep_prop ro.build.version.sdk /system/build.prop)
 ABI=$(grep_prop ro.product.cpu.abi | cut -c-3)
 ABI2=$(grep_prop ro.product.cpu.abi2 | cut -c-3)
 ABILONG=$(grep_prop ro.product.cpu.abi)
