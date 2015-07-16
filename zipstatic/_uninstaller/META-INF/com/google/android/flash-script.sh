@@ -12,7 +12,7 @@ grep_prop() {
   shift
   FILES=$@
   if [ -z "$FILES" ]; then
-    FILES='/system/build.prop /default.prop'
+    FILES='/system/build.prop'
   fi
   cat $FILES 2>/dev/null | sed -n $REGEX | head -n 1
 }
@@ -33,7 +33,7 @@ set_perm() {
   if [ "$5" ]; then
     chcon $5 $1 2>/dev/null
   else
-    restorecon $1 2>/dev/null
+    chcon 'u:object_r:system_file:s0' $1 2>/dev/null
   fi
 }
 
@@ -81,6 +81,10 @@ echo "********************************"
 echo "- Mounting /system read-write"
 mount /system >/dev/null 2>&1
 mount -o remount,rw /system
+if [ ! -f '/system/build.prop' ]; then
+  echo "! Failed: /system could not be mounted!"
+  exit 1
+fi
 
 echo "- Checking environment"
 API=$(grep_prop ro.build.version.sdk)
