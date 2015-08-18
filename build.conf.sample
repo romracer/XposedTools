@@ -17,3 +17,10 @@ version = 65 (custom build by xyz / %s)
 arm = 21
 x86 = 21
 armv5 = 17
+
+# SDKs to be used for compiling XZ-Utils
+# Needs https://github.com/romracer/android_external_xz-utils
+[XZ-Utils]
+arm = 21
+x86 = 21
+armv5 = 17
