@@ -17,6 +17,19 @@ grep_prop() {
   cat $FILES 2>/dev/null | sed -n $REGEX | head -n 1
 }
 
+android_version() {
+  case $1 in
+    15) echo '4.0 / SDK'$1;;
+    16) echo '4.1 / SDK'$1;;
+    17) echo '4.2 / SDK'$1;;
+    18) echo '4.3 / SDK'$1;;
+    19) echo '4.4 / SDK'$1;;
+    21) echo '5.0 / SDK'$1;;
+    22) echo '5.1 / SDK'$1;;
+    *)  echo 'SDK'$1;;
+  esac
+}
+
 cp_perm() {
   cp -f $1 $2 || exit 1
   set_perm $2 $3 $4 $5 $6
@@ -60,14 +73,15 @@ install_overwrite() {
   NO_ORIG="${1}.no_orig"
   if [ ! -f $TARGET ]; then
     touch $NO_ORIG || exit 1
-    set_perm $NO_ORIG 0 0 0644
+    set_perm $NO_ORIG 0 0 600
   elif [ -f $BACKUP ]; then
+    rm -f $TARGET
     gzip $BACKUP || exit 1
-    set_perm "${BACKUP}.gz" $2 $3 $4 $5
+    set_perm "${BACKUP}.gz" 0 0 600
   elif [ ! -f "${BACKUP}.gz" -a ! -f $NO_ORIG ]; then
     mv $TARGET $BACKUP || exit 1
     gzip $BACKUP || exit 1
-    set_perm "${BACKUP}.gz" $2 $3 $4 $5
+    set_perm "${BACKUP}.gz" 0 0 600
   fi
   cp_perm ./$TARGET $TARGET $2 $3 $4 $5
 }
@@ -83,9 +97,11 @@ if [ ! -f "system/xposed.prop" ]; then
   exit 1
 fi
 
-echo "- Mounting /system read-write"
+echo "- Mounting /system and /vendor read-write"
 mount /system >/dev/null 2>&1
+mount /vendor >/dev/null 2>&1
 mount -o remount,rw /system
+mount -o remount,rw /vendor >/dev/null 2>&1
 if [ ! -f '/system/build.prop' ]; then
   echo "! Failed: /system could not be mounted!"
   exit 1
@@ -93,6 +109,7 @@ fi
 
 echo "- Checking environment"
 API=$(grep_prop ro.build.version.sdk)
+APINAME=$(android_version $API)
 ABI=$(grep_prop ro.product.cpu.abi | cut -c-3)
 ABI2=$(grep_prop ro.product.cpu.abi2 | cut -c-3)
 ABILONG=$(grep_prop ro.product.cpu.abi)
@@ -102,9 +119,9 @@ XARCH=$(grep_prop arch system/xposed.prop)
 XMINSDK=$(grep_prop minsdk system/xposed.prop)
 XMAXSDK=$(grep_prop maxsdk system/xposed.prop)
 
-XEXPECTEDSDK=$XMINSDK
+XEXPECTEDSDK=$(android_version $XMINSDK)
 if [ "$XMINSDK" != "$XMAXSDK" ]; then
-  XEXPECTEDSDK="$XMINSDK-$XMAXSDK"
+  XEXPECTEDSDK=$XEXPECTEDSDK' - '$(android_version $XMAXSDK)
 fi
 
 ARCH=arm
@@ -126,13 +143,16 @@ if [ "$ARCH" = "$XARCH" ]; then
     if [ "$API" -le "$XMAXSDK" ]; then
       XVALID=1
     else
-      echo "! Wrong SDK version: $API, expected $XEXPECTEDSDK"
+      echo "! Wrong Android version: $APINAME"
+      echo "! This file is for: $XEXPECTEDSDK"
     fi
   else
-    echo "! Wrong SDK version: $API, expected $XEXPECTEDSDK"
+    echo "! Wrong Android version: $APINAME"
+    echo "! This file is for: $XEXPECTEDSDK"
   fi
 else
-  echo "! Wrong platform: $ARCH, expected: $XARCH"
+  echo "! Wrong platform: $ARCH"
+  echo "! This file is for: $XARCH"
 fi
 
 if [ -z $XVALID ]; then
@@ -161,6 +181,10 @@ if [ $IS64BIT ]; then
   install_overwrite /system/lib64/libart-disassembler.so  0    0 0644
   install_overwrite /system/lib64/libsigchain.so          0    0 0644
   install_overwrite /system/lib64/libxposed_art.so        0    0 0644
+fi
+
+if [ "$API" -ge "22" ]; then
+  find /system /vendor -type f -name '*.odex.gz' 2>/dev/null | while read f; do mv "$f" "$f.xposed"; done
 fi
 
 echo "- Done"
