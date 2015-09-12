@@ -5,5 +5,5 @@
   <project path="external/xz-utils" name="romracer/android_external_xz-utils" remote="github" revision="v5.2-xposed"/>
   <project path="frameworks/base/cmds/xposed" name="romracer/Xposed" remote="github" revision="master"/>
   <remove-project name="platform/art" />
-  <project path="art" name="romracer/android_art" remote="github" revision="xposed-lollipop"/>
+  <project path="art" name="romracer/android_art" remote="github" revision="xposed-lollipop-mr1"/>
 </manifest>
