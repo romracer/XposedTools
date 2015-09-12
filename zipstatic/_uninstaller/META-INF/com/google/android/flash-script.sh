@@ -63,6 +63,10 @@ restore_backup() {
     rm -f $TARGET $NO_ORIG
     gunzip "${BACKUP}.gz"
     mv_perm $BACKUP $TARGET $2 $3 $4 $5
+  elif [ -f "${BACKUP}.xz" ]; then
+    rm -f $TARGET $NO_ORIG
+    META-INF/com/google/android/xz-static -d "${BACKUP}.xz"
+    mv_perm $BACKUP $TARGET $2 $3 $4 $5
   elif [ -f /data/local/tmp/xposed-backups/$BACKUP ]; then
     cp_perm /data/local/tmp/xposed-backups/$BACKUP $TARGET $2 $3 $4 $5
     rm -f $NO_ORIG
@@ -120,6 +124,7 @@ if [ -f "/system/xposed-backups.tgz" ]; then
 fi
 
 echo "- Restoring/removing files"
+set_perm META-INF/com/google/android/xz-static 0 0 755
 rm -f /system/xposed.prop
 rm -f /system/framework/XposedBridge.jar
 

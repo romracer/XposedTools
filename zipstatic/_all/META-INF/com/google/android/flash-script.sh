@@ -45,6 +45,11 @@ set_perm() {
   fi
 }
 
+compress() {
+  META-INF/com/google/android/xz-static $1 || exit 1
+  set_perm "${1}.xz" 0 0 600
+}
+
 install_nobackup() {
   cp_perm ./$1 $1 $2 $3 $4 $5
 }
@@ -76,12 +81,14 @@ install_overwrite() {
     set_perm $NO_ORIG 0 0 600
   elif [ -f $BACKUP ]; then
     rm -f $TARGET
-    gzip $BACKUP || exit 1
-    set_perm "${BACKUP}.gz" 0 0 600
-  elif [ ! -f "${BACKUP}.gz" -a ! -f $NO_ORIG ]; then
+    compress $BACKUP
+  elif [ -f "${BACKUP}.gz" ]; then
+    rm -f $TARGET
+    gunzip "${BACKUP}.gz" || exit 1
+    compress $BACKUP
+  elif [ ! -f "${BACKUP}.xz" -a ! -f $NO_ORIG ]; then
     mv $TARGET $BACKUP || exit 1
-    gzip $BACKUP || exit 1
-    set_perm "${BACKUP}.gz" 0 0 600
+    compress $BACKUP
   fi
   cp_perm ./$TARGET $TARGET $2 $3 $4 $5
 }
@@ -162,6 +169,8 @@ if [ -z $XVALID ]; then
 fi
 
 echo "- Placing files"
+set_perm META-INF/com/google/android/xz-static 0 0 755
+
 install_nobackup /system/xposed.prop                      0    0 0644
 install_nobackup /system/framework/XposedBridge.jar       0    0 0644
 
