@@ -177,6 +177,7 @@ sub compile($$;$) {
     }
 
     if ($platform eq 'host') {
+        $ENV{'HOST_PREFER_32_BIT'} = 'true';
         $ENV{'ART_BUILD_HOST_NDEBUG'} = 'true';
         @targets = qw(
             out/host/linux-x86/bin/dex2oat
@@ -184,6 +185,7 @@ sub compile($$;$) {
         );
         @makefiles = qw(art/Android.mk);
     } elsif ($platform eq 'hostd') {
+        $ENV{'HOST_PREFER_32_BIT'} = 'true';
         $ENV{'ART_BUILD_HOST_DEBUG'} = 'true';
         @targets = qw(
             out/host/linux-x86/bin/dex2oatd
@@ -372,6 +374,13 @@ sub create_zip($$) {
     $zip->writeToFileNamed($zipname) == AZ_OK || return 0;
 
     Xposed::sign_zip($zipname);
+
+    # Create a stable symlink to the latest version
+    my $latest = $coldir . '/latest.zip';
+    unlink($latest);
+    if (!symlink(basename($zipname), $latest)) {
+        print_error("Could not create link to latest version: $!");
+    }
 
     # Flash the file (if requested)
     if ($opts{'f'}) {
