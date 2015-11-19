@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <manifest>
   <remote name="github" fetch="https://github.com" />
+  <project path="external/busybox" name="romracer/android_external_busybox" remote="github" revision="xposed"/>
+  <project path="external/xz-utils" name="romracer/android_external_xz-utils" remote="github" revision="v5.2-xposed"/>
   <project path="frameworks/base/cmds/xposed" name="rovo89/Xposed" remote="github" revision="master"/>
   <remove-project name="platform/art" />
   <project path="art" name="rovo89/android_art" remote="github" revision="xposed-marshmallow"/>
