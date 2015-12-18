@@ -126,7 +126,12 @@ sub expand_targets($;$) {
     my %seen;
     foreach (split(m/[\/ ]+/, $spec)) {
         my ($pfspec, $sdkspec) = split(m/[: ]+/, $_, 2);
-        my @pflist = ($pfspec ne 'all') ? split(m/[, ]/, $pfspec) : ('arm', 'x86', 'arm64', 'armv5');
+        my @pflist = ($pfspec ne 'all' && $pfspec ne 'all+') ? split(m/[, ]/, $pfspec) : ('arm', 'x86', 'arm64', 'armv5');
+        if ($pfspec eq 'all+') {
+            push @pflist, 'host';
+            push @pflist, 'hostd';
+            $pfspec = 'all';
+        }
         my @sdklist = ($sdkspec ne 'all') ? split(m/[, ]/, $sdkspec) : $cfg->Parameters('AospDir');
         foreach my $sdk (@sdklist) {
             foreach my $pf (@pflist) {
@@ -162,9 +167,8 @@ sub check_target_sdk_platform($$;$) {
             return 0;
         }
     } elsif ($platform eq 'host' || $platform eq 'hostd') {
-        return 0 if $wildcard;
         if ($sdk < 21) {
-            print_error('host builds are not supported prior to Android 5.0 (SDK 21)');
+            print_error('host builds are not supported prior to Android 5.0 (SDK 21)') unless $wildcard;
             return 0;
         }
     } elsif ($platform ne 'arm' && $platform ne 'x86') {
@@ -237,8 +241,9 @@ sub get_lunch_mode($$) {
 }
 
 # Get default make parameters
-sub get_make_parameters($) {
+sub get_make_parameters($$) {
     my $platform = shift;
+    my $sdk = shift;
 
     my @params = split(m/\s+/, $cfg->val('Build', 'makeflags', '-j4'));
 
@@ -248,8 +253,10 @@ sub get_make_parameters($) {
         push @params, 'TARGET_ARCH_VARIANT=armv5te';
         push @params, 'ARCH_ARM_HAVE_TLS_REGISTER=false';
         push @params, 'TARGET_CPU_SMP=false';
-    } else {
+    } elsif ($sdk < 23) {
         push @params, 'TARGET_CPU_SMP=true';
+    } elsif ($platform eq 'x86') {
+        push @params, 'arch_variant_cflags=\'-march=prescott -mno-ssse3\'';
     }
 
     return @params;

@@ -162,7 +162,7 @@ sub compile($$;$) {
     should_perform_step('compile') || return 1;
     print_status("Compiling...", 1);
 
-    my @params = Xposed::get_make_parameters($platform);
+    my @params = Xposed::get_make_parameters($platform, $sdk);
     my @targets = qw(xposed);
     my @makefiles = qw(frameworks/base/cmds/xposed/Android.mk);
 
@@ -273,6 +273,7 @@ sub get_compiled_files($$) {
             /system/lib64/libxposed_art.so
 
             /system/lib64/libart.so
+            /system/lib64/libart-compiler.so
             /system/lib64/libart-disassembler.so
             /system/lib64/libsigchain.so
         );
