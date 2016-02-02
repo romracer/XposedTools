@@ -368,7 +368,7 @@ sub create_zip($$) {
     $Xposed::cfg->val('Build', 'version') =~ m/^(\d+)(.*)/;
     my ($version, $suffix) = ($1, $2);
     if ($suffix) {
-        $suffix = sprintf($suffix, strftime('%Y%m%d', localtime()));
+        $suffix = sprintf($suffix, strftime('%Y%m%d', localtime())) if $suffix =~ m/%s/;
         $suffix =~ s/[\s\/|*"?<:>%()]+/-/g;
         $suffix =~ s/-{2,}/-/g;
         $suffix =~ s/^-|-$//g;
@@ -412,7 +412,7 @@ sub build_java() {
 
     print_status('Compiling...', 1);
     chdir($javadir);
-    system('gradle app:assembleRelease') == 0 || return 0;
+    system('./gradlew app:assembleRelease lint') == 0 || return 0;
     print "\n";
 
     print_status('Copying APK to XposedBridge.jar...', 1);
