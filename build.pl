@@ -63,7 +63,7 @@ sub main() {
 
         # Build the specified targets
         foreach my $target (@targets) {
-            all_in_one($target->{'platform'}, $target->{'sdk'}, !$opts{'v'}) || exit 1;
+            all_in_one($target->{'platform'}, $target->{'sdk'}, $target->{'systemless'}, !$opts{'v'}) || exit 1;
         }
     } elsif ($action eq 'java') {
         # Build XposedBridge.jar
@@ -103,7 +103,9 @@ Possible actions are:
 Format of <targets> is: <platform>:<sdk>[/<platform2>:<sdk2>/...]
   <platform> is a comma-separated list of: arm, x86, arm64 (and up to SDK 17, also armv5)
   <sdk> is a comma-separated list of integers (e.g. 21 for Android 5.0)
+  <sdk> may also be suffixed with the letter 's' for systemless (SDK 23 and up only)
   Both platform and SDK accept the wildcard "all".
+  Systemless is not built with the wildcard "all".
 
 Values for <steps> are provided as a comma-separated list of:
   compile   Compile executables and libraries.
@@ -140,18 +142,19 @@ sub should_perform_step($) {
 }
 
 # Performs all build steps for one platform/SDK combination
-sub all_in_one($$;$) {
+sub all_in_one($$$;$) {
     my $platform = shift;
     my $sdk = shift;
+    my $systemless = shift;
     my $silent = shift || 0;
 
-    print_status("Processing SDK $sdk, platform $platform...", 0);
+    ($systemless) ? print_status("Processing SDK $sdk (systemless), platform $platform...", 0) : print_status("Processing SDK $sdk, platform $platform...", 0);
 
     compile($platform, $sdk, $silent) || return 0;
     if ($platform ne 'host' && $platform ne 'hostd') {
-        collect($platform, $sdk) || return 0;
-        create_xposed_prop($platform, $sdk, !$silent) || return 0;
-        create_zip($platform, $sdk) || return 0;
+        collect($platform, $sdk, $systemless) || return 0;
+        create_xposed_prop($platform, $sdk, $systemless, !$silent) || return 0;
+        create_zip($platform, $sdk, $systemless) || return 0;
     }
 
     print "\n\n";
@@ -209,9 +212,10 @@ sub compile($$;$) {
 }
 
 # Collect final files into a single directory
-sub collect($$) {
+sub collect($$$) {
     my $platform = shift;
     my $sdk = shift;
+    my $systemless = shift;
 
     should_perform_step('collect') || return 1;
     print_status("Collecting compiled files...", 1);
@@ -226,7 +230,7 @@ sub collect($$) {
     return 0 if -e $coldir . '/files';
 
     # Copy files
-    my $files = get_compiled_files($platform, $sdk);
+    my $files = get_compiled_files($platform, $sdk, $systemless);
     while( my ($file, $target) = each(%$files)) {
         $file = $rootdir . '/' . $outdir . $file;
         $target = $coldir . '/files' . $target;
@@ -242,9 +246,11 @@ sub collect($$) {
 }
 
 # Returns a hash paths of compiled files
-sub get_compiled_files($$) {
+sub get_compiled_files($$$) {
     my $platform = shift;
     my $sdk = shift;
+    my $systemless = shift;
+    my $basepath = ($systemless) ? "xposed" : "system";
 
     my %files;
     tie(%files, 'Tie::IxHash');
@@ -256,41 +262,51 @@ sub get_compiled_files($$) {
         );
     } else {
         $files{$_} = $_ foreach qw(
-            /system/bin/app_process32_xposed
-            /system/lib/libxposed_art.so
+            /$basepath/bin/app_process32_xposed
+            /$basepath/lib/libxposed_art.so
 
-            /system/lib/libart.so
-            /system/lib/libart-compiler.so
-            /system/lib/libart-disassembler.so
-            /system/lib/libsigchain.so
+            /$basepath/lib/libart.so
+            /$basepath/lib/libart-compiler.so
+            /$basepath/lib/libart-disassembler.so
+            /$basepath/lib/libsigchain.so
 
-            /system/bin/dex2oat
-            /system/bin/oatdump
-            /system/bin/patchoat
+            /$basepath/bin/dex2oat
+            /$basepath/bin/oatdump
+            /$basepath/bin/patchoat
         );
     }
 
     if ($platform eq 'arm64') {
         # libart-disassembler is required by oatdump only, which is a 64-bit executable
-        delete $files{'/system/lib/libart-disassembler.so'};
+        delete $files{"/$basepath/lib/libart-disassembler.so"};
 
         $files{$_} = $_ foreach qw(
-            /system/bin/app_process64_xposed
-            /system/lib64/libxposed_art.so
+            /$basepath/bin/app_process64_xposed
+            /$basepath/lib64/libxposed_art.so
 
-            /system/lib64/libart.so
-            /system/lib64/libart-disassembler.so
-            /system/lib64/libsigchain.so
+            /$basepath/lib64/libart.so
+            /$basepath/lib64/libart-disassembler.so
+            /$basepath/lib64/libsigchain.so
         );
     }
 
-    return \%files;
+    my %final_files;
+    tie(%final_files, 'Tie::IxHash');
+    my $key;
+    foreach $key (keys %files) {
+        my $source = eval qq("$key");
+        $source =~ s/xposed/system/ if ($basepath eq 'xposed');
+        $final_files{$source} = eval qq("$key");
+    }
+    return \%final_files;
 }
 
-# Creates the /system/xposed.prop file
-sub create_xposed_prop($$;$) {
+# Creates the xposed.prop file
+sub create_xposed_prop($$$;$) {
     my $platform = shift;
     my $sdk = shift;
+    my $systemless = shift;
+    my $basepath = ($systemless) ? "xposed" : "system";
     my $print = shift || 0;
 
     should_perform_step('prop') || return 1;
@@ -298,7 +314,7 @@ sub create_xposed_prop($$;$) {
 
     # Open the file
     my $coldir = Xposed::get_collection_dir($platform, $sdk);
-    my $propfile = $coldir . '/files/system/xposed.prop';
+    my $propfile = $coldir . "/files/$basepath/xposed.prop";
     print "$propfile\n";
     make_path(dirname($propfile));
     if (!open(PROPFILE, '>', $propfile)) {
@@ -327,6 +343,7 @@ version=$version
 arch=$platform
 minsdk=$minsdk
 maxsdk=$maxsdk
+systemless=$systemless
 EOF
 
     print PROPFILE $content;
@@ -339,9 +356,11 @@ EOF
 }
 
 # Create a flashable ZIP file with the compiled and some static files
-sub create_zip($$) {
+sub create_zip($$$) {
     my $platform = shift;
     my $sdk = shift;
+    my $systemless = shift;
+    my $basepath = ($systemless) ? "xposed" : "system";
 
     should_perform_step('zip') || return 1;
     print_status("Creating flashable ZIP file...", 1);
@@ -352,8 +371,8 @@ sub create_zip($$) {
     my $coldir = Xposed::get_collection_dir($platform, $sdk);
     make_path($coldir);
     $zip->addTree($coldir . '/files/', '') == AZ_OK || return 0;
-    $zip->addDirectory('system/framework/') || return 0;
-    $zip->addFile("$outdir/java/XposedBridge.jar", 'system/framework/XposedBridge.jar') || return 0;
+    $zip->addDirectory("$basepath/framework/") || return 0;
+    $zip->addFile("$outdir/java/XposedBridge.jar", "$basepath/framework/XposedBridge.jar") || return 0;
     # TODO: We probably need different files for older releases
     $zip->addTree($Bin . '/zipstatic/_all/', '') == AZ_OK || return 0;
     $zip->addTree($Bin . '/zipstatic/' . $platform . '/', '') == AZ_OK || return 0;
@@ -366,7 +385,12 @@ sub create_zip($$) {
 
     # Write the ZIP file to disk
     my ($version, $suffix) = Xposed::get_version_for_filename();
-    my $zipname = sprintf('xposed-v%d-sdk%d-%s%s.zip', $version, $sdk, $platform, $suffix);
+    my $zipname;
+    if ($version =~ m/^\d+\./) {
+       $zipname = sprintf('xposed-v%.1f-sdk%d-%s%s%s.zip', $version, $sdk, $platform, ($systemless) ? '-systemless' : '', $suffix);
+    } else {
+       $zipname = sprintf('xposed-v%d-sdk%d-%s%s%s.zip', $version, $sdk, $platform, ($systemless) ? '-systemless' : '', $suffix);
+    }
     my $zippath = $coldir . '/' . $zipname;
     print "$zippath\n";
     $zip->writeToFileNamed($zippath) == AZ_OK || return 0;
@@ -391,7 +415,7 @@ sub create_zip($$) {
     }
 
     # Flash the file (if requested)
-    if ($opts{'f'}) {
+    if ($opts{'f'} && !$systemless) {
         print_status("Flashing ZIP file...", 1);
         system("adb push $zippath /data/local/tmp/xposed.zip") == 0 || return 0;
         system("adb push $Bin/zipstatic/$platform/META-INF/com/google/android/update-binary /data/local/tmp/update-binary") == 0 || return 0;

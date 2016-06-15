@@ -128,12 +128,18 @@ sub expand_targets($;$) {
             $pfspec = 'all';
         }
         my @sdklist = ($sdkspec ne 'all') ? split(m/[, ]/, $sdkspec) : $cfg->Parameters('AospDir');
+        my $systemless;
         foreach my $sdk (@sdklist) {
             foreach my $pf (@pflist) {
-                next if !check_target_sdk_platform($pf, $sdk, $pfspec eq 'all' || $sdkspec eq 'all');
-                next if $seen{"$pf/$sdk"}++;
-                push @result, { platform => $pf, sdk => $sdk };
-                print "  SDK $sdk, platform $pf\n" if $print;
+                $systemless = 0;
+                if ($sdk =~ m/^\d+s/) {
+                    $systemless = 1;
+                    $sdk =~ s/s//g;
+                }
+                next if !check_target_sdk_platform($pf, $sdk, $systemless, $pfspec eq 'all' || $sdkspec eq 'all');
+                next if $seen{"$pf/$sdk/$systemless"}++;
+                push @result, { platform => $pf, sdk => $sdk, systemless => $systemless };
+                print "  SDK $sdk, platform $pf, systemless $systemless\n" if $print;
             }
         }
     }
@@ -141,13 +147,19 @@ sub expand_targets($;$) {
 }
 
 # Check target SDK version and platform
-sub check_target_sdk_platform($$;$) {
+sub check_target_sdk_platform($$$;$) {
     my $platform = shift;
     my $sdk = shift;
+    my $systemless = shift;
     my $wildcard = shift || 0;
 
     if ($sdk < 15 || $sdk == 20 || $sdk > $MAX_SUPPORTED_SDK) {
         print_error("Unsupported SDK version $sdk");
+        return 0;
+    }
+
+    if ($sdk < 23 && $systemless) {
+        print_error('Systemless builds are not supported prior to Android 6.0 (SDK 23)');
         return 0;
     }
 
@@ -186,7 +198,7 @@ sub get_version() {
 # Returns the Xposed version number and the suffix to be used in file names
 sub get_version_for_filename(;$) {
     my $version = shift || get_version();
-    $version =~ m/^(\d+)(.*)/;
+    $version =~ m/^(\d+(?:\.\d+)?)(.*)/;
     my ($version_num, $suffix) = ($1, $2);
     if ($suffix) {
         $suffix =~ s/[\s\/|*"?<:>%()]+/-/g;
@@ -244,7 +256,11 @@ sub get_collection_dir($$) {
 # Returns the directory to store symlinks to the ZIPs per versions
 sub get_version_dir(;$) {
     my ($version, $suffix) = get_version_for_filename(shift);
-    return sprintf('%s/versions/v%d%s', $cfg->val('General', 'outdir'), $version, $suffix);
+    if ($version =~ m/^\d+\./) {
+        return sprintf('%s/versions/v%.1f%s', $cfg->val('General', 'outdir'), $version, $suffix);
+    } else {
+        return sprintf('%s/versions/v%d%s', $cfg->val('General', 'outdir'), $version, $suffix);
+    }
 }
 
 # Determines the mode that has to be passed to the "lunch" command
