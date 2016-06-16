@@ -261,8 +261,12 @@ sub get_compiled_files($$$) {
             /system/lib/libxposed_dalvik.so
         );
     } else {
+        if ($systemless) {
+            $files{'/$basepath/bin/app_process32_xposed'} = '/$basepath/bin/app_process32';
+        } else {
+            $files{'/$basepath/bin/app_process32_xposed'} = '/$basepath/bin/app_process32_xposed';
+        }
         $files{$_} = $_ foreach qw(
-            /$basepath/bin/app_process32_xposed
             /$basepath/lib/libxposed_art.so
 
             /$basepath/lib/libart.so
@@ -278,10 +282,14 @@ sub get_compiled_files($$$) {
 
     if ($platform eq 'arm64') {
         # libart-disassembler is required by oatdump only, which is a 64-bit executable
-        delete $files{"/$basepath/lib/libart-disassembler.so"};
+        delete $files{'/$basepath/lib/libart-disassembler.so'};
 
+        if ($systemless) {
+            $files{'/$basepath/bin/app_process64_xposed'} = '/$basepath/bin/app_process64';
+        } else {
+            $files{'/$basepath/bin/app_process64_xposed'} = '/$basepath/bin/app_process64_xposed';
+        }
         $files{$_} = $_ foreach qw(
-            /$basepath/bin/app_process64_xposed
             /$basepath/lib64/libxposed_art.so
 
             /$basepath/lib64/libart.so
@@ -292,11 +300,10 @@ sub get_compiled_files($$$) {
 
     my %final_files;
     tie(%final_files, 'Tie::IxHash');
-    my $key;
-    foreach $key (keys %files) {
+    foreach my $key (keys %files) {
         my $source = eval qq("$key");
-        $source =~ s/xposed/system/ if ($basepath eq 'xposed');
-        $final_files{$source} = eval qq("$key");
+        $source =~ s/xposed/system/ if $systemless;
+        $final_files{$source} = eval qq("$files{$key}");
     }
     return \%final_files;
 }
