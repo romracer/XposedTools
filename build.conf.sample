@@ -22,3 +22,9 @@ user = 852109AA!
 arm = 21
 x86 = 21
 armv5 = 17
+
+# SDKs to be used for compiling mkbootimg/unpackbootimg
+# Needs https://github.com/romracer/android_external_mkbootimg
+[mkbootimg]
+x86 = 23
+arm = 23
