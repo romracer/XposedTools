@@ -74,7 +74,7 @@ sub build($$;$) {
     my $sdk = shift;
 
     print_status("Building for $platform on SDK $sdk...", 0);
-    Xposed::check_target_sdk_platform($platform, $sdk) || return 0;
+    Xposed::check_target_sdk_platform($platform, $sdk, 0) || return 0;
 
     my $rootdir = Xposed::get_rootdir($sdk) || return 0;
     my $outdir = Xposed::get_outdir($platform) || return 0;

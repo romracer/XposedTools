@@ -302,8 +302,9 @@ sub get_compiled_files($$$) {
     tie(%final_files, 'Tie::IxHash');
     foreach my $key (keys %files) {
         my $source = eval qq("$key");
+        my $target = eval qq("$files{$key}");
         $source =~ s/xposed/system/ if $systemless;
-        $final_files{$source} = eval qq("$files{$key}");
+        $final_files{$source} = $target;
     }
     return \%final_files;
 }
