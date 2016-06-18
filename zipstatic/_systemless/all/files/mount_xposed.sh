@@ -23,34 +23,53 @@ bind_mount() {
   fi
 }
 
-if [ -f "/cache/xposed.img" ]; then
-  log_xposed "/cache/xposed.img found!"
-  if [ -f "/data/xposed.img" ]; then
-    log_xposed "/data/xposed.img found! Start merging"
-    umount /xposed
-    mkdir /cache/xposed_cache
-    mkdir /cache/xposed_data
-    loopsetup /cache/xposed.img
-    if [ ! -z "$LOOPDEVICE" ]; then
-      mount -t ext4 -o rw,noatime $LOOPDEVICE /cache/xposed_cache
+if [ "$1" == "-cache" ]; then
+  if [ -f "/cache/xposed.img" ]; then
+    log_xposed "/cache/xposed.img found!"
+    if [ -f "/data/xposed.img" ]; then
+      log_xposed "/data/xposed.img found! Start merging"
+      umount /xposed
+      mkdir /cache/xposed_cache
+      mkdir /cache/xposed_data
+      loopsetup /cache/xposed.img
+      if [ ! -z "$LOOPDEVICE" ]; then
+        mount -t ext4 -o rw,noatime $LOOPDEVICE /cache/xposed_cache
+      fi
+      loopsetup /data/xposed.img
+      if [ ! -z "$LOOPDEVICE" ]; then
+        mount -t ext4 -o rw,noatime $LOOPDEVICE /cache/xposed_data
+      fi
+      cp -af /cache/xposed_cache/. /cache/xposed_data
+      chcon u:object_r:system_file:s0 /cache/xposed_data
+      chcon u:object_r:system_file:s0 /cache/xposed_data/bin
+      chcon u:object_r:system_file:s0 /cache/xposed_data/framework
+      chcon u:object_r:system_file:s0 /cache/xposed_data/lib
+      chcon u:object_r:system_file:s0 /cache/xposed_data/lib64
+      chcon u:object_r:system_file:s0 /cache/xposed_data/xposed.prop
+      chcon u:object_r:zygote_exec:s0 /cache/xposed_data/bin/app_process32
+      chcon u:object_r:zygote_exec:s0 /cache/xposed_data/bin/app_process64
+      chcon u:object_r:dex2oat_exec:s0 /cache/xposed_data/bin/dex2oat
+      chcon u:object_r:system_file:s0 /cache/xposed_data/bin/oatdump
+      chcon u:object_r:dex2oat_exec:s0 /cache/xposed_data/bin/patchoat
+      chcon u:object_r:system_file:s0 /cache/xposed_data/framework/XposedBridge.jar
+      chcon u:object_r:system_file:s0 /cache/xposed_data/lib/libart.so
+      chcon u:object_r:system_file:s0 /cache/xposed_data/lib/libart-compiler.so
+      chcon u:object_r:system_file:s0 /cache/xposed_data/lib/libsigchain.so
+      chcon u:object_r:system_file:s0 /cache/xposed_data/lib/libxposed_art.so
+      chcon u:object_r:system_file:s0 /cache/xposed_data/lib64/libart.so
+      chcon u:object_r:system_file:s0 /cache/xposed_data/lib64/libart-disassembler.so
+      chcon u:object_r:system_file:s0 /cache/xposed_data/lib64/libsigchain.so
+      chcon u:object_r:system_file:s0 /cache/xposed_data/lib64/libxposed_art.so
+      umount /cache/xposed_cache
+      umount /cache/xposed_data
+      rm -rf /cache/xposed.img /cache/xposed_cache /cache/xposed_data
+    else
+      log_xposed "/data/xposed.img not found! Move from /cache to /data"
+      mv /cache/xposed.img /data/xposed.img
     fi
-    loopsetup /data/xposed.img
-    if [ ! -z "$LOOPDEVICE" ]; then
-      mount -t ext4 -o rw,noatime $LOOPDEVICE /cache/xposed_data
-    fi
-    cp -af /cache/xposed_cache/. /cache/xposed_data
-    chcon u:object_r:zygote_exec:s0 /cache/xposed_data/bin/app_process32
-    chcon u:object_r:zygote_exec:s0 /cache/xposed_data/bin/app_process64
-    chcon u:object_r:dex2oat_exec:s0 /cache/xposed_data/bin/dex2oat
-    chcon u:object_r:dex2oat_exec:s0 /cache/xposed_data/bin/patchoat
-    umount /cache/xposed_cache
-    umount /cache/xposed_data
-    rm -rf /cache/xposed.img /cache/xposed_cache /cache/xposed_data
-  else
-    log_xposed "/data/xposed.img not found! Move from /cache to /data"
-    mv /cache/xposed.img /data/xposed.img
+    reboot
   fi
-  reboot
+  exit 0
 fi
 
 if [ "$(getprop xposed.mount)" -eq "0" ]; then
