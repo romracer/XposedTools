@@ -384,6 +384,10 @@ sub create_zip($$$) {
     # TODO: We probably need different files for older releases
     $zip->addTree($Bin . '/zipstatic/_all/', '') == AZ_OK || return 0;
     $zip->addTree($Bin . '/zipstatic/' . $platform . '/', '') == AZ_OK || return 0;
+    if ($systemless) {
+        $zip->addTree($Bin . '/zipstatic/_systemless/all/', '') == AZ_OK || return 0;
+        $zip->addTree($Bin . '/zipstatic/_systemless/' . $platform . '/', '') == AZ_OK || return 0;
+    }
 
     # Set last modification time to "now"
     my $now = time();
