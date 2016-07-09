@@ -158,8 +158,8 @@ sub check_target_sdk_platform($$$;$) {
         return 0;
     }
 
-    if ($sdk < 23 && $systemless) {
-        print_error('Systemless builds are not supported prior to Android 6.0 (SDK 23)');
+    if ($sdk < 22 && $systemless) {
+        print_error('Systemless builds are not supported prior to Android 5.1 (SDK 22)');
         return 0;
     }
 

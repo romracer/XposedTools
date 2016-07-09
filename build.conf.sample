@@ -26,5 +26,5 @@ armv5 = 17
 # SDKs to be used for compiling mkbootimg/unpackbootimg
 # Needs https://github.com/romracer/android_external_mkbootimg
 [mkbootimg]
-x86 = 23
-arm = 23
+x86 = 22
+arm = 22
